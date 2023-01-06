@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BoschDishwasherThing", "BoschDishwasherThing\BoschDishwasherThing.csproj", "{004F57F5-70E4-413A-8F3A-6AF5CABFFD4A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BoschDishwasherThing", "Src\BoschDishwasherThing.csproj", "{004F57F5-70E4-413A-8F3A-6AF5CABFFD4A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

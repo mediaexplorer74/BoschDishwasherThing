@@ -31,14 +31,21 @@ public record Packet
 	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
 	public JsonElement[]? Data { get; set; }
 
-	public override string ToString()
+    // ToString
+    public override string ToString()
 	{
-		var sb = new StringBuilder($"sID={SessionID}, mID={MessageID}, req='{Action} {Resource}/v{Version}'");
+		var sb = new StringBuilder(
+			$"sID={SessionID}, mID={MessageID}, req='{Action} {Resource}/v{Version}'");
+
 		if (Data != null)
+		{
 			sb.Append($", data='{string.Join(',', Data)}'");
+		}
 
 		if (StatusCode != null)
-			sb.Append($", code={(HttpStatusCode) StatusCode}");
+		{
+			sb.Append($", code={(HttpStatusCode)StatusCode}");
+		}
 
 		return sb.ToString();
 	}

@@ -14,7 +14,8 @@ const int BufferSize = 8192;
 Config config;
 await using (var file = File.Open("config.json", FileMode.Open, FileAccess.Read))
 {
-	config = (await JsonSerializer.DeserializeAsync<Config[]>(file, new JsonSerializerOptions {PropertyNamingPolicy = JsonNamingPolicy.CamelCase}))![0];
+	config = (await JsonSerializer.DeserializeAsync<Config[]>(file, 
+		new JsonSerializerOptions {PropertyNamingPolicy = JsonNamingPolicy.CamelCase}))![0];
 }
 
 var paddedKey = config.Key + (config.Key.Length % 4) switch
@@ -24,7 +25,9 @@ var paddedKey = config.Key + (config.Key.Length % 4) switch
 	_ => ""
 };
 
-var client = new CustomPskTlsClient(new BasicTlsPskIdentity("Client_identity", Convert.FromBase64String(paddedKey)));
+var client = new CustomPskTlsClient(new 
+	BasicTlsPskIdentity("Client_identity", 
+	Convert.FromBase64String(paddedKey)));
 
 using var tcpSocket = new TcpClient();
 await tcpSocket.ConnectAsync(config.Host, 443);
@@ -48,7 +51,8 @@ try
 	var length = await tlsStream.ReadAsync(tcpBuffer);
 	Console.WriteLine($"Received {length} bytes");
 	Console.WriteLine(Encoding.UTF8.GetString(tcpBuffer.AsSpan()[..length]));
-} finally
+} 
+finally
 {
 	ArrayPool<byte>.Shared.Return(tcpBuffer);
 }
@@ -56,7 +60,8 @@ try
 var tcs = new TaskCompletionSource<Packet>();
 
 var webSocket = WebSocket.CreateFromStream(
-	tlsStream, new WebSocketCreationOptions
+	tlsStream, 
+	new WebSocketCreationOptions
 	{
 		IsServer = false
 	}
@@ -128,7 +133,8 @@ static async Task Start(WebSocket webSocket, TaskCompletionSource<Packet> initTc
 
 			if (response.MessageType == WebSocketMessageType.Close || response.CloseStatus != null)
 			{
-				Console.WriteLine($"Connection closing with reason {response.CloseStatus}/{response.CloseStatusDescription}.");
+				Console.WriteLine(
+					$"Connection closing with reason {response.CloseStatus}/{response.CloseStatusDescription}.");
 
 				return;
 			}
@@ -136,14 +142,24 @@ static async Task Start(WebSocket webSocket, TaskCompletionSource<Packet> initTc
 			Debug.Assert(response.MessageType == WebSocketMessageType.Text, "Message type must be text");
 
 			var packet = JsonSerializer.Deserialize<Packet>(new MemoryStream(buffer, 0, response.Count));
+			
 			Console.WriteLine($"RX: {string.Join(',', packet)}");
+			
 			switch (packet!.Resource)
 			{
 				case "/ei/initialValues":
-					var initData = JsonSerializer.SerializeToElement(new {deviceType = "Application", deviceName = nameof(BoschDishwasherThing), deviceID = "deadbeef"});
+                    JsonElement initData = JsonSerializer.SerializeToElement(
+						new {deviceType = "Application", deviceName = nameof(BoschDishwasherThing), 
+							deviceID = "deadbeef"});
+					
 					transactionID = packet.Data![0].GetProperty("edMsgID").GetInt64();
 					await SendRequest(webSocket, packet with {Action = "RESPONSE", Data = new[] {initData}});
-					await SendRequest(webSocket, new Packet {Action = "GET", SessionID = packet.SessionID, MessageID = transactionID++, Version = 1, Resource = "/ci/services"});
+					await SendRequest(webSocket, 
+						new Packet {Action = "GET", 
+							SessionID = packet.SessionID, 
+							MessageID = transactionID++, 
+							Version = 1, 
+							Resource = "/ci/services"});
 
 					break;
 				case "/ci/services":
@@ -152,9 +168,26 @@ static async Task Start(WebSocket webSocket, TaskCompletionSource<Packet> initTc
 						service => service.GetProperty("version").GetByte()
 					);
 
-					await SendRequest(webSocket, new Packet {Action = "NOTIFY", SessionID = packet.SessionID, MessageID = transactionID++, Version = services["ei"], Resource = "/ei/deviceReady"});
-					await SendRequest(webSocket, new Packet {Action = "GET", SessionID = packet.SessionID, MessageID = transactionID++, Version = services["iz"], Resource = "/iz/info"});
-					await SendRequest(webSocket, new Packet {Action = "GET", SessionID = packet.SessionID, MessageID = transactionID++, Version = services["ci"], Resource = "/ci/registeredDevices"});
+					await SendRequest(webSocket, 
+						new Packet {Action = "NOTIFY", 
+							SessionID = packet.SessionID, 
+							MessageID = transactionID++, 
+							Version = services["ei"], 
+							Resource = "/ei/deviceReady"});
+					
+					await SendRequest(webSocket, 
+						new Packet {Action = "GET", 
+							SessionID = packet.SessionID, 
+							MessageID = transactionID++, 
+							Version = services["iz"], 
+							Resource = "/iz/info"});
+
+					await SendRequest(webSocket, 
+						new Packet {Action = "GET", 
+							SessionID = packet.SessionID, 
+							MessageID = transactionID++, 
+							Version = services["ci"], 
+							Resource = "/ci/registeredDevices"});
 
 					initTcs.SetResult(new Packet {SessionID = packet.SessionID, MessageID = transactionID});
 
@@ -170,21 +203,26 @@ static async Task Start(WebSocket webSocket, TaskCompletionSource<Packet> initTc
 static async Task SendRequest(WebSocket webSocket, Packet request)
 {
 	Console.WriteLine("TX: " + request);
-	await webSocket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(request), WebSocketMessageType.Text, true, CancellationToken.None);
+	await webSocket.SendAsync(
+		JsonSerializer.SerializeToUtf8Bytes(request), 
+		WebSocketMessageType.Text, 
+		true, 
+		CancellationToken.None);
 }
 
 #if DEBUG
 static async Task ExportSecretsToFile(TlsClientProtocol protocol, string path)
 {
-	var context = (TlsContext) typeof(TlsClientProtocol)
+    TlsContext context = (TlsContext) typeof(TlsClientProtocol)
 		.GetField("m_tlsClientContext", BindingFlags.NonPublic | BindingFlags.Instance)!
 		.GetValue(protocol)!;
 
-	var masterKey = (byte[]) typeof(AbstractTlsSecret)
+	byte[] masterKey = (byte[]) typeof(AbstractTlsSecret)
 		.GetField("m_data", BindingFlags.NonPublic | BindingFlags.Instance)!
 		.GetValue(context.Session.ExportSessionParameters().MasterSecret)!;
 
-	var exportedSecrets = $"CLIENT_RANDOM {BinToHex(context.SecurityParameters.ClientRandom)} {BinToHex(masterKey)}";
+	string exportedSecrets = $"CLIENT_RANDOM {BinToHex(context.SecurityParameters.ClientRandom)} " +
+		$"{BinToHex(masterKey)}";
 
 	await File.AppendAllLinesAsync(path, new[] {exportedSecrets});
 }
